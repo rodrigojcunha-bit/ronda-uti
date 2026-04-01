@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1a5276">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <title>Ronda UTI Adulto</title>
+    <style>
+        :root {
+            --primary: #1a5276;
+            --primary-light: #2980b9;
+            --success: #27ae60;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --gray: #95a5a6;
+            --bg: #ecf0f1;
+            --card: #fff;
+            --text: #2c3e50;
+            --radius: 10px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: #fff;
+            padding: 16px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        header h1 { font-size: 18px; font-weight: 600; }
+        header small { opacity: 0.8; font-size: 12px; }
+        .offline-badge {
+            display: none;
+            background: var(--warning);
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        body.offline .offline-badge { display: inline-block; }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            background: #fff;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 60px;
+            z-index: 99;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px 8px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray);
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        /* Sections */
+        .section { display: none; padding: 16px; }
+        .section.active { display: block; }
+
+        /* Form */
+        .form-group {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        .form-row {
+            display: flex;
+            gap: 8px;
+        }
+        .form-row input, .form-row select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+            -webkit-appearance: none;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: var(--primary-light);
+            box-shadow: 0 0 0 3px rgba(41,128,185,0.15);
+        }
+
+        /* Audit items */
+        .audit-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            margin-bottom: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .audit-card .item-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .audit-card .item-header .item-number {
+            background: var(--primary);
+            color: #fff;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .audit-card .item-header .item-label {
+            flex: 1;
+        }
+        .btn-group {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+        .btn-opt {
+            width: 44px;
+            height: 36px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.15s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-opt.selected-c {
+            background: var(--success);
+            border-color: var(--success);
+            color: #fff;
+        }
+        .btn-opt.selected-nc {
+            background: var(--danger);
+            border-color: var(--danger);
+            color: #fff;
+        }
+        .btn-opt.selected-na {
+            background: var(--gray);
+            border-color: var(--gray);
+            color: #fff;
+        }
+        .obs-field {
+            display: none;
+            padding: 0 16px 12px;
+        }
+        .obs-field.visible { display: block; }
+        .obs-field textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 13px;
+            resize: none;
+            height: 60px;
+            font-family: inherit;
+        }
+
+        /* Category headers */
+        .category-header {
+            padding: 10px 16px;
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+            margin-top: 12px;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: #fff;
+            border: none;
+            padding: 14px 24px;
+            border-radius: var(--radius);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 12px;
+            box-shadow: 0 2px 8px rgba(26,82,118,0.3);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+        .btn-secondary {
+            background: #fff;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 8px;
+        }
+        .btn-danger {
+            background: var(--danger);
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* History */
+        .history-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            cursor: pointer;
+        }
+        .history-card .meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .history-card .meta strong { font-size: 15px; }
+        .history-card .meta .date { font-size: 12px; color: var(--gray); }
+        .history-card .stats {
+            display: flex;
+            gap: 12px;
+            font-size: 12px;
+        }
+        .history-card .stats .stat-c { color: var(--success); font-weight: 600; }
+        .history-card .stats .stat-nc { color: var(--danger); font-weight: 600; }
+        .history-card .stats .stat-na { color: var(--gray); font-weight: 600; }
+        .conformity-bar {
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .conformity-bar .fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s;
+        }
+
+        /* Dashboard */
+        .dash-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        .dash-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .dash-card .value {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+        .dash-card .label {
+            font-size: 11px;
+            color: var(--gray);
+            margin-top: 4px;
+        }
+        .nc-list {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 12px;
+        }
+        .nc-list h3 { font-size: 14px; margin-bottom: 10px; }
+        .nc-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .nc-item:last-child { border-bottom: none; }
+        .nc-item .count {
+            background: var(--danger);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal h2 { font-size: 18px; margin-bottom: 16px; }
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        .modal-actions button { flex: 1; }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--gray);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-state p { font-size: 14px; }
+
+        /* Progress indicator */
+        .progress-info {
+            text-align: center;
+            padding: 8px;
+            font-size: 12px;
+            color: var(--gray);
+        }
+        .leito-select-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .leito-chip {
+            padding: 10px 8px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.15s;
+        }
+        .leito-chip.selected {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: #fff;
+        }
+        .leito-chip.done {
+            background: #d5f5e3;
+            border-color: var(--success);
+            color: var(--success);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Ronda UTI Adulto <span class="offline-badge">Offline</span></h1>
+        <small id="headerDate"></small>
+    </header>
+
+    <div class="tabs">
+        <button class="tab active" data-tab="audit">Auditoria</button>
+        <button class="tab" data-tab="history">Historico</button>
+        <button class="tab" data-tab="dashboard">Dashboard</button>
+    </div>
+
+    <!-- AUDIT TAB -->
+    <div id="audit" class="section active">
+        <div class="form-group">
+            <label>Data da Ronda</label>
+            <div class="form-row">
+                <input type="date" id="auditDate">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Auditor</label>
+            <div class="form-row">
+                <input type="text" id="auditorName" placeholder="Nome do auditor">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Selecione o Leito</label>
+            <div class="leito-select-grid" id="leitoGrid"></div>
+        </div>
+
+        <div id="auditForm" style="display:none;">
+            <div class="progress-info" id="progressInfo"></div>
+            <div id="auditItems"></div>
+
+            <div class="form-group" style="margin-top: 12px;">
+                <label>Observacoes Gerais</label>
+                <textarea id="generalObs" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;resize:none;height:80px;font-family:inherit;" placeholder="Observacoes adicionais..."></textarea>
+            </div>
+
+            <button class="btn-primary" onclick="saveAudit()">Salvar Auditoria do Leito</button>
+            <button class="btn-secondary" onclick="finishRonda()">Finalizar Ronda</button>
+        </div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="history" class="section">
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <input type="date" id="filterDate" style="flex:1;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:14px;">
+            <button class="btn-danger" onclick="clearFilter()" style="white-space:nowrap;">Limpar</button>
+        </div>
+        <div id="historyList"></div>
+        <button class="btn-secondary" onclick="exportCSV()" style="margin-top:8px;">Exportar CSV</button>
+    </div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="dashboard" class="section">
+        <div class="form-group">
+            <label>Periodo</label>
+            <div class="form-row">
+                <input type="date" id="dashFrom">
+                <input type="date" id="dashTo">
+            </div>
+            <button class="btn-secondary" onclick="updateDashboard()" style="margin-top:8px;">Atualizar</button>
+        </div>
+        <div class="dash-grid">
+            <div class="dash-card">
+                <div class="value" id="dashTotal" style="color:var(--primary)">0</div>
+                <div class="label">Auditorias</div>
+            </div>
+            <div class="dash-card">
+                <div class="value" id="dashConf" style="color:var(--success)">0%</div>
+                <div class="label">Conformidade</div>
+            </div>
+            <div class="dash-card">
+                <div class="value" id="dashLeitos" style="color:var(--primary-light)">0</div>
+                <div class="label">Leitos Auditados</div>
+            </div>
+            <div class="dash-card">
+                <div class="value" id="dashNC" style="color:var(--danger)">0</div>
+                <div class="label">Total NC</div>
+            </div>
+        </div>
+        <div class="nc-list" id="ncRanking">
+            <h3>Ranking de Nao Conformidades</h3>
+            <div id="ncRankItems"></div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal" id="detailContent"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ===== AUDIT ITEMS CONFIG =====
+    const LEITOS = [3, 4, 8, 12, 16, 19, 22, 24, 30, 33, 34, 39];
+
+    const CATEGORIES = [
+        {
+            name: "Estrutura",
+            items: [
+                "PORTAS",
+                "ALCOOL"
+            ]
+        },
+        {
+            name: "Identificacao e Planejamento",
+            items: [
+                "IDENT. PACIENTE",
+                "METAS DIARIAS",
+                "CHECK LIST - ADMISSAO",
+                "PREENCHIMENTO BUNDLE"
+            ]
+        },
+        {
+            name: "Via Aerea / Ventilacao",
+            items: [
+                "BVM (AMBU)",
+                "CABECEIRA ELEVADA",
+                "HIGIENE ORAL",
+                "VM FILTRO E CIRCUITO",
+                "VM BRACO",
+                "ACCUCUFF"
+            ]
+        },
+        {
+            name: "Monitorizacao e Acessos",
+            items: [
+                "MONITOR - ALARMES",
+                "CURATIVO CVC",
+                "CONECTOR VALVULADO"
+            ]
+        },
+        {
+            name: "Eliminacoes e Pele",
+            items: [
+                "SVD - SACO COLETOR",
+                "SVD - FIXACAO",
+                "FRALDA",
+                "PREVENCAO LPP - DESCOMPRESSAO"
+            ]
+        },
+        {
+            name: "Protocolos e Planos",
+            items: [
+                "PROTOCOLO DE TEV",
+                "P. DIETA ENTERAL PREENCHIMENTO",
+                "PLANO TERAPEUTICO NUTRICAO",
+                "PLANO TERAPEUTICO ENFERMAGEM",
+                "PLANO TERAPEUTICO FISIOTERAPIA",
+                "PLANO TERAPEUTICO MEDICO"
+            ]
+        },
+        {
+            name: "Registros",
+            items: [
+                "IPASS MEDICO",
+                "BALANCO HIDRICO",
+                "EQUIPO DATADO"
+            ]
+        }
+    ];
+
+    const ALL_ITEMS = CATEGORIES.flatMap(c => c.items);
+
+    // ===== STATE =====
+    let currentLeito = null;
+    let currentRondaData = {};  // { leitoX: { items: {...}, obs: '' } }
+    let completedLeitos = new Set();
+
+    // ===== INIT =====
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('auditDate').value = today;
+        document.getElementById('headerDate').textContent = formatDate(today);
+        document.getElementById('dashFrom').value = today.slice(0, 8) + '01';
+        document.getElementById('dashTo').value = today;
+
+        // Restore auditor name
+        const savedAuditor = localStorage.getItem('ronda_auditor');
+        if (savedAuditor) document.getElementById('auditorName').value = savedAuditor;
+
+        buildLeitoGrid();
+        renderHistory();
+        updateDashboard();
+
+        // Tabs
+        document.querySelectorAll('.tab').forEach(t => {
+            t.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+                document.querySelectorAll('.section').forEach(x => x.classList.remove('active'));
+                t.classList.add('active');
+                document.getElementById(t.dataset.tab).classList.add('active');
+                if (t.dataset.tab === 'history') renderHistory();
+                if (t.dataset.tab === 'dashboard') updateDashboard();
+            });
+        });
+
+        // Filter
+        document.getElementById('filterDate').addEventListener('change', renderHistory);
+
+        // Offline detection
+        const updateOnline = () => document.body.classList.toggle('offline', !navigator.onLine);
+        window.addEventListener('online', updateOnline);
+        window.addEventListener('offline', updateOnline);
+        updateOnline();
+    });
+
+    // ===== LEITO GRID =====
+    function buildLeitoGrid() {
+        const grid = document.getElementById('leitoGrid');
+        grid.innerHTML = '';
+        LEITOS.forEach(l => {
+            const chip = document.createElement('div');
+            chip.className = 'leito-chip' + (completedLeitos.has(l) ? ' done' : '') + (currentLeito === l ? ' selected' : '');
+            chip.textContent = l;
+            chip.onclick = () => selectLeito(l);
+            grid.appendChild(chip);
+        });
+    }
+
+    function selectLeito(leito) {
+        // Save current if switching
+        if (currentLeito !== null) saveCurrentState();
+
+        currentLeito = leito;
+        buildLeitoGrid();
+        buildAuditForm(leito);
+        document.getElementById('auditForm').style.display = 'block';
+    }
+
+    // ===== AUDIT FORM =====
+    function buildAuditForm(leito) {
+        const container = document.getElementById('auditItems');
+        container.innerHTML = '';
+        let idx = 0;
+
+        const saved = currentRondaData[leito] || {};
+
+        CATEGORIES.forEach(cat => {
+            const header = document.createElement('div');
+            header.className = 'category-header';
+            header.textContent = cat.name;
+            container.appendChild(header);
+
+            cat.items.forEach(item => {
+                idx++;
+                const savedVal = saved.items ? saved.items[item] : null;
+                const savedObs = saved.itemObs ? saved.itemObs[item] : '';
+
+                const card = document.createElement('div');
+                card.className = 'audit-card';
+                card.innerHTML = `
+                    <div class="item-header">
+                        <span class="item-number">${idx}</span>
+                        <span class="item-label">${item}</span>
+                        <div class="btn-group">
+                            <button class="btn-opt ${savedVal === 'C' ? 'selected-c' : ''}" data-item="${item}" data-val="C" onclick="setVal(this)">C</button>
+                            <button class="btn-opt ${savedVal === 'NC' ? 'selected-nc' : ''}" data-item="${item}" data-val="NC" onclick="setVal(this)">NC</button>
+                            <button class="btn-opt ${savedVal === 'NA' ? 'selected-na' : ''}" data-item="${item}" data-val="NA" onclick="setVal(this)">NA</button>
+                        </div>
+                    </div>
+                    <div class="obs-field ${savedVal === 'NC' ? 'visible' : ''}" id="obs-${idx}">
+                        <textarea placeholder="Observacao da nao conformidade..." data-item="${item}" oninput="setObs(this)">${savedObs || ''}</textarea>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        });
+
+        document.getElementById('generalObs').value = saved.obs || '';
+        updateProgress();
+    }
+
+    function setVal(btn) {
+        const item = btn.dataset.item;
+        const val = btn.dataset.val;
+        const group = btn.parentElement;
+
+        group.querySelectorAll('.btn-opt').forEach(b => {
+            b.className = 'btn-opt';
+        });
+        btn.classList.add('selected-' + val.toLowerCase());
+
+        // Show/hide obs for NC
+        const obsField = btn.closest('.audit-card').querySelector('.obs-field');
+        if (obsField) {
+            obsField.classList.toggle('visible', val === 'NC');
+        }
+
+        // Store
+        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
+        currentRondaData[currentLeito].items[item] = val;
+
+        updateProgress();
+    }
+
+    function setObs(textarea) {
+        const item = textarea.dataset.item;
+        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
+        if (!currentRondaData[currentLeito].itemObs) currentRondaData[currentLeito].itemObs = {};
+        currentRondaData[currentLeito].itemObs[item] = textarea.value;
+    }
+
+    function updateProgress() {
+        if (!currentLeito) return;
+        const data = currentRondaData[currentLeito];
+        const filled = data && data.items ? Object.keys(data.items).length : 0;
+        document.getElementById('progressInfo').textContent = `Leito ${currentLeito} - ${filled}/${ALL_ITEMS.length} itens preenchidos`;
+    }
+
+    function saveCurrentState() {
+        if (!currentLeito) return;
+        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
+        currentRondaData[currentLeito].obs = document.getElementById('generalObs').value;
+    }
+
+    // ===== SAVE =====
+    function saveAudit() {
+        if (!currentLeito) return;
+        saveCurrentState();
+
+        const data = currentRondaData[currentLeito];
+        if (!data || !data.items || Object.keys(data.items).length === 0) {
+            showToast('Preencha ao menos um item');
+            return;
+        }
+
+        const date = document.getElementById('auditDate').value;
+        const auditor = document.getElementById('auditorName').value.trim();
+        if (!auditor) {
+            showToast('Informe o nome do auditor');
+            return;
+        }
+
+        localStorage.setItem('ronda_auditor', auditor);
+
+        const record = {
+            id: Date.now() + '_' + currentLeito,
+            date,
+            auditor,
+            leito: currentLeito,
+            items: { ...data.items },
+            itemObs: { ...(data.itemObs || {}) },
+            obs: data.obs || '',
+            timestamp: new Date().toISOString()
+        };
+
+        const records = getRecords();
+        records.push(record);
+        localStorage.setItem('ronda_records', JSON.stringify(records));
+
+        completedLeitos.add(currentLeito);
+        buildLeitoGrid();
+        showToast(`Leito ${currentLeito} salvo com sucesso`);
+
+        // Auto-select next leito
+        const nextLeito = LEITOS.find(l => !completedLeitos.has(l));
+        if (nextLeito) {
+            selectLeito(nextLeito);
+        } else {
+            document.getElementById('auditForm').style.display = 'none';
+            currentLeito = null;
+        }
+    }
+
+    function finishRonda() {
+        if (completedLeitos.size === 0) {
+            showToast('Nenhum leito foi auditado');
+            return;
+        }
+        currentRondaData = {};
+        completedLeitos = new Set();
+        currentLeito = null;
+        buildLeitoGrid();
+        document.getElementById('auditForm').style.display = 'none';
+        showToast(`Ronda finalizada!`);
+    }
+
+    // ===== HISTORY =====
+    function getRecords() {
+        try {
+            return JSON.parse(localStorage.getItem('ronda_records') || '[]');
+        } catch { return []; }
+    }
+
+    function renderHistory() {
+        const list = document.getElementById('historyList');
+        let records = getRecords();
+        const filter = document.getElementById('filterDate').value;
+        if (filter) records = records.filter(r => r.date === filter);
+
+        records.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+        if (records.length === 0) {
+            list.innerHTML = '<div class="empty-state"><div class="icon">&#128203;</div><p>Nenhuma auditoria encontrada</p></div>';
+            return;
+        }
+
+        list.innerHTML = records.map(r => {
+            const stats = calcStats(r.items);
+            const pct = stats.total > 0 ? Math.round((stats.c / (stats.c + stats.nc)) * 100) || 0 : 0;
+            const color = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
+            return `
+                <div class="history-card" onclick="showDetail('${r.id}')">
+                    <div class="meta">
+                        <strong>Leito ${r.leito}</strong>
+                        <span class="date">${formatDate(r.date)} - ${r.auditor}</span>
+                    </div>
+                    <div class="stats">
+                        <span class="stat-c">C: ${stats.c}</span>
+                        <span class="stat-nc">NC: ${stats.nc}</span>
+                        <span class="stat-na">NA: ${stats.na}</span>
+                        <span style="margin-left:auto;font-weight:700;color:${color}">${pct}%</span>
+                    </div>
+                    <div class="conformity-bar"><div class="fill" style="width:${pct}%;background:${color}"></div></div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function clearFilter() {
+        document.getElementById('filterDate').value = '';
+        renderHistory();
+    }
+
+    function showDetail(id) {
+        const records = getRecords();
+        const r = records.find(x => x.id === id);
+        if (!r) return;
+
+        const stats = calcStats(r.items);
+        const pct = stats.total > 0 ? Math.round((stats.c / (stats.c + stats.nc)) * 100) || 0 : 0;
+
+        let html = `<h2>Leito ${r.leito} - ${formatDate(r.date)}</h2>`;
+        html += `<p style="font-size:13px;color:var(--gray);margin-bottom:16px;">Auditor: ${r.auditor}</p>`;
+        html += `<p style="font-size:14px;font-weight:600;margin-bottom:12px;">Conformidade: ${pct}%</p>`;
+
+        CATEGORIES.forEach(cat => {
+            html += `<div style="font-size:12px;font-weight:700;color:var(--primary);margin:12px 0 6px;text-transform:uppercase;">${cat.name}</div>`;
+            cat.items.forEach(item => {
+                const val = r.items[item] || '-';
+                const color = val === 'C' ? 'var(--success)' : val === 'NC' ? 'var(--danger)' : 'var(--gray)';
+                const obs = r.itemObs && r.itemObs[item] ? `<div style="font-size:11px;color:#666;margin-left:12px;">${r.itemObs[item]}</div>` : '';
+                html += `<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid #f0f0f0;">
+                    <span>${item}</span>
+                    <span style="font-weight:700;color:${color}">${val}</span>
+                </div>${obs}`;
+            });
+        });
+
+        if (r.obs) html += `<div style="margin-top:12px;padding:10px;background:#f8f9fa;border-radius:8px;font-size:13px;"><strong>Obs:</strong> ${r.obs}</div>`;
+
+        html += `<div class="modal-actions">
+            <button class="btn-danger" onclick="deleteRecord('${r.id}')">Excluir</button>
+            <button class="btn-secondary" onclick="closeModal()">Fechar</button>
+        </div>`;
+
+        document.getElementById('detailContent').innerHTML = html;
+        document.getElementById('detailModal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('detailModal').classList.remove('show');
+    }
+
+    function deleteRecord(id) {
+        if (!confirm('Excluir esta auditoria?')) return;
+        let records = getRecords();
+        records = records.filter(r => r.id !== id);
+        localStorage.setItem('ronda_records', JSON.stringify(records));
+        closeModal();
+        renderHistory();
+        showToast('Auditoria excluida');
+    }
+
+    document.getElementById('detailModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    // ===== DASHBOARD =====
+    function updateDashboard() {
+        const from = document.getElementById('dashFrom').value;
+        const to = document.getElementById('dashTo').value;
+        let records = getRecords();
+        if (from) records = records.filter(r => r.date >= from);
+        if (to) records = records.filter(r => r.date <= to);
+
+        document.getElementById('dashTotal').textContent = records.length;
+
+        let totalC = 0, totalNC = 0, totalNA = 0;
+        const ncMap = {};
+        const leitoSet = new Set();
+
+        records.forEach(r => {
+            leitoSet.add(r.leito);
+            Object.entries(r.items).forEach(([item, val]) => {
+                if (val === 'C') totalC++;
+                else if (val === 'NC') {
+                    totalNC++;
+                    ncMap[item] = (ncMap[item] || 0) + 1;
+                }
+                else totalNA++;
+            });
+        });
+
+        const applicable = totalC + totalNC;
+        const pct = applicable > 0 ? Math.round((totalC / applicable) * 100) : 0;
+        document.getElementById('dashConf').textContent = pct + '%';
+        document.getElementById('dashConf').style.color = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
+        document.getElementById('dashLeitos').textContent = leitoSet.size;
+        document.getElementById('dashNC').textContent = totalNC;
+
+        // NC Ranking
+        const sorted = Object.entries(ncMap).sort((a, b) => b[1] - a[1]);
+        const rankContainer = document.getElementById('ncRankItems');
+        if (sorted.length === 0) {
+            rankContainer.innerHTML = '<p style="font-size:13px;color:var(--gray);text-align:center;padding:12px;">Nenhuma nao conformidade</p>';
+        } else {
+            rankContainer.innerHTML = sorted.map(([item, count]) => `
+                <div class="nc-item">
+                    <span>${item}</span>
+                    <span class="count">${count}</span>
+                </div>
+            `).join('');
+        }
+    }
+
+    // ===== EXPORT CSV =====
+    function exportCSV() {
+        const records = getRecords();
+        if (records.length === 0) {
+            showToast('Sem dados para exportar');
+            return;
+        }
+
+        const headers = ['Data', 'Auditor', 'Leito', ...ALL_ITEMS, 'Observacoes'];
+        const rows = records.map(r => {
+            const vals = ALL_ITEMS.map(item => {
+                let v = r.items[item] || '';
+                if (v === 'NC' && r.itemObs && r.itemObs[item]) {
+                    v += ' - ' + r.itemObs[item];
+                }
+                return v;
+            });
+            return [r.date, r.auditor, r.leito, ...vals, r.obs || ''];
+        });
+
+        let csv = '\uFEFF'; // BOM for Excel
+        csv += headers.map(h => `"${h}"`).join(';') + '\n';
+        rows.forEach(row => {
+            csv += row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ronda_uti_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('CSV exportado');
+    }
+
+    // ===== UTILS =====
+    function calcStats(items) {
+        let c = 0, nc = 0, na = 0;
+        Object.values(items).forEach(v => {
+            if (v === 'C') c++;
+            else if (v === 'NC') nc++;
+            else na++;
+        });
+        return { c, nc, na, total: c + nc + na };
+    }
+
+    function formatDate(dateStr) {
+        if (!dateStr) return '';
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // ===== SERVICE WORKER =====
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+    </script>
+</body>
+</html>
