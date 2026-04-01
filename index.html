@@ -384,7 +384,36 @@
         }
         .modal-actions button { flex: 1; }
 
-        .empty-state {
+                .item-conf-row {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 10px;
+        }
+        .item-conf-row:last-child { border-bottom: none; }
+        .item-conf-row .item-name { flex: 1; min-width: 0; }
+        .item-conf-row .item-bar {
+            width: 80px;
+            height: 6px;
+            background: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .item-conf-row .item-bar .item-fill {
+            height: 100%;
+            border-radius: 3px;
+        }
+        .item-conf-row .item-pct {
+            width: 42px;
+            text-align: right;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+.empty-state {
             text-align: center;
             padding: 48px 20px;
             color: var(--gray);
@@ -480,6 +509,12 @@
             <button class="btn-danger" onclick="clearFilter()" style="white-space:nowrap;">Limpar</button>
         </div>
         <div id="historyList"></div>
+        <div id="itemConformity" style="display:none;margin-top:16px;">
+            <div class="nc-list">
+                <h3>Conformidade por Item</h3>
+                <div id="itemConfList"></div>
+            </div>
+        </div>
         <button class="btn-secondary" onclick="exportCSV()" style="margin-top:8px;">Exportar CSV</button>
     </div>
 
@@ -850,6 +885,47 @@
                 </div>
             `;
         }).join('');
+
+        // Conformidade por item
+        renderItemConformity(records);
+    }
+
+    function renderItemConformity(records) {
+        const container = document.getElementById('itemConformity');
+        const listEl = document.getElementById('itemConfList');
+
+        if (records.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'block';
+
+        const itemStats = {};
+        ALL_ITEMS.forEach(item => { itemStats[item] = { c: 0, nc: 0 }; });
+
+        records.forEach(r => {
+            Object.entries(r.items).forEach(([item, val]) => {
+                if (!itemStats[item]) return;
+                if (val === 'C') itemStats[item].c++;
+                else if (val === 'NC') itemStats[item].nc++;
+            });
+        });
+
+        let html = '';
+        CATEGORIES.forEach(cat => {
+            html += '<div style="font-size:11px;font-weight:700;color:var(--primary);margin:10px 0 4px;text-transform:uppercase;letter-spacing:0.3px;">' + cat.name + '</div>';
+            cat.items.forEach(item => {
+                const s = itemStats[item];
+                const applicable = s.c + s.nc;
+                const pct = applicable > 0 ? Math.round((s.c / applicable) * 100) : -1;
+                const color = pct < 0 ? 'var(--gray)' : pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
+                const pctText = pct < 0 ? '-' : pct + '%';
+                const barWidth = pct < 0 ? 0 : pct;
+                html += '<div class="item-conf-row"><span class="item-name">' + item + '</span><div class="item-bar"><div class="item-fill" style="width:' + barWidth + '%;background:' + color + '"></div></div><span class="item-pct" style="color:' + color + '">' + pctText + '</span></div>';
+            });
+        });
+
+        listEl.innerHTML = html;
     }
 
     function clearFilter() {
