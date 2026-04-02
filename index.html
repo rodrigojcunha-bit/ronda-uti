@@ -10,6 +10,8 @@
     <link rel="icon" href="icon-192.png">
     <link rel="apple-touch-icon" href="icon-192.png">
     <title>Ronda UTI Adulto</title>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
     <style>
         :root {
             --primary: #1a5276;
@@ -479,11 +481,56 @@
         }
         .session-item:last-child { border-bottom: none; }
         .session-item .check { color: var(--success); font-weight: 700; }
+
+        /* Sync badge */
+        .sync-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+            cursor: pointer;
+        }
+        .sync-badge.synced { background: var(--success); color: #fff; }
+        .sync-badge.pending { background: var(--warning); color: #000; }
+        .sync-badge.no-fb { background: var(--gray); color: #fff; }
+        .sync-badge.syncing { background: var(--primary-light); color: #fff; animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+        /* Firebase config */
+        .fb-config-panel {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .fb-config-panel h3 { font-size: 14px; margin-bottom: 8px; color: var(--primary); }
+        .fb-config-panel p { font-size: 12px; color: var(--gray); margin-bottom: 10px; }
+        .fb-config-panel textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1.5px solid #ddd;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
+            resize: none;
+            height: 120px;
+        }
+        .fb-config-panel .fb-status {
+            margin-top: 8px;
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 6px;
+        }
+        .fb-config-panel .fb-status.ok { background: #d5f5e3; color: var(--success); }
+        .fb-config-panel .fb-status.err { background: #fadbd8; color: var(--danger); }
     </style>
 </head>
 <body>
     <header>
-        <h1>Ronda UTI Adulto <span class="offline-badge">Offline</span></h1>
+        <h1>Ronda UTI Adulto <span class="offline-badge">Offline</span> <span class="sync-badge no-fb" id="syncBadge" onclick="manualSync()">Firebase</span></h1>
         <small id="headerDate"></small>
     </header>
 
@@ -491,6 +538,7 @@
         <button class="tab active" data-tab="audit">Auditoria</button>
         <button class="tab" data-tab="history">Historico</button>
         <button class="tab" data-tab="dashboard">Dashboard</button>
+        <button class="tab" data-tab="config">Config</button>
     </div>
 
     <!-- AUDIT TAB -->
@@ -582,6 +630,24 @@
         <div class="nc-list" id="ncRanking">
             <h3>Ranking de Nao Conformidades</h3>
             <div id="ncRankItems"></div>
+        </div>
+    </div>
+
+    <!-- CONFIG TAB -->
+    <div id="config" class="section">
+        <div class="fb-config-panel">
+            <h3>Firebase - Sincronizacao na Nuvem</h3>
+            <p>Cole aqui o objeto de configuracao do Firebase (firebaseConfig) do seu projeto. Acesse <strong>console.firebase.google.com</strong>, crie um projeto, ative o Firestore e copie a configuracao.</p>
+            <textarea id="fbConfigInput" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
+            <button class="btn-primary" onclick="saveFirebaseConfig()" style="margin-top:8px;">Salvar e Conectar</button>
+            <button class="btn-secondary" onclick="removeFirebaseConfig()">Desconectar Firebase</button>
+            <div id="fbStatus"></div>
+        </div>
+        <div class="fb-config-panel">
+            <h3>Status da Sincronizacao</h3>
+            <p id="syncStatus">Nao configurado</p>
+            <button class="btn-secondary" onclick="manualSync()">Sincronizar Agora</button>
+            <button class="btn-danger" onclick="clearLocalCache()" style="margin-top:8px;">Limpar Cache Local</button>
         </div>
     </div>
 
@@ -697,10 +763,23 @@
 
         document.getElementById('filterDate').addEventListener('change', renderHistory);
 
-        const updateOnline = () => document.body.classList.toggle('offline', !navigator.onLine);
-        window.addEventListener('online', updateOnline);
+        const updateOnline = () => {
+            document.body.classList.toggle('offline', !navigator.onLine);
+            updateSyncBadge();
+        };
+        window.addEventListener('online', () => {
+            updateOnline();
+            // Auto-sync when back online
+            if (firebaseReady) syncToFirebase();
+        });
         window.addEventListener('offline', updateOnline);
         updateOnline();
+
+        // Init Firebase if configured
+        const fbConfig = getFirebaseConfig();
+        if (fbConfig) {
+            initFirebase(fbConfig);
+        }
     });
 
     // ===== UTI GRID =====
@@ -855,6 +934,13 @@
         records.push(record);
         localStorage.setItem('ronda_records', JSON.stringify(records));
 
+        // Firebase: add to pending and try sync
+        addPending(record);
+        updateSyncBadge();
+        if (firebaseReady && navigator.onLine) {
+            syncToFirebase(); // async, non-blocking
+        }
+
         sessionAudits.push(record);
         showToast(`${currentUTI} - Leito ${leito} salvo!`);
 
@@ -879,6 +965,154 @@
         document.getElementById('auditForm').style.display = 'none';
         document.getElementById('sessionAudits').style.display = 'none';
         showToast(`Ronda finalizada! ${total} auditorias salvas.`);
+    }
+
+    // ===== FIREBASE =====
+    let db = null;
+    let firebaseReady = false;
+
+    function getFirebaseConfig() {
+        try {
+            return JSON.parse(localStorage.getItem('ronda_firebase_config'));
+        } catch { return null; }
+    }
+
+    function saveFirebaseConfig() {
+        const raw = document.getElementById('fbConfigInput').value.trim();
+        try {
+            const config = JSON.parse(raw);
+            if (!config.apiKey || !config.projectId) throw new Error('Falta apiKey ou projectId');
+            localStorage.setItem('ronda_firebase_config', JSON.stringify(config));
+            initFirebase(config);
+            document.getElementById('fbStatus').innerHTML = '<div class="fb-status ok">Conectado com sucesso!</div>';
+        } catch (e) {
+            document.getElementById('fbStatus').innerHTML = `<div class="fb-status err">Erro: ${e.message}</div>`;
+        }
+    }
+
+    function removeFirebaseConfig() {
+        localStorage.removeItem('ronda_firebase_config');
+        db = null;
+        firebaseReady = false;
+        updateSyncBadge();
+        document.getElementById('fbStatus').innerHTML = '<div class="fb-status err">Firebase desconectado</div>';
+        document.getElementById('syncStatus').textContent = 'Nao configurado';
+    }
+
+    function initFirebase(config) {
+        try {
+            if (firebase.apps.length === 0) {
+                firebase.initializeApp(config);
+            }
+            db = firebase.firestore();
+            firebaseReady = true;
+            updateSyncBadge();
+            // Load config into textarea
+            const input = document.getElementById('fbConfigInput');
+            if (input) input.value = JSON.stringify(config, null, 2);
+            // Auto-sync on init
+            if (navigator.onLine) syncToFirebase();
+        } catch (e) {
+            console.error('Firebase init error:', e);
+            firebaseReady = false;
+            updateSyncBadge();
+        }
+    }
+
+    function updateSyncBadge() {
+        const badge = document.getElementById('syncBadge');
+        const pendingCount = getPendingRecords().length;
+        if (!firebaseReady) {
+            badge.className = 'sync-badge no-fb';
+            badge.textContent = 'Firebase';
+        } else if (pendingCount > 0) {
+            badge.className = 'sync-badge pending';
+            badge.textContent = `${pendingCount} pendente${pendingCount > 1 ? 's' : ''}`;
+        } else {
+            badge.className = 'sync-badge synced';
+            badge.textContent = 'Sincronizado';
+        }
+    }
+
+    function getPendingRecords() {
+        try {
+            return JSON.parse(localStorage.getItem('ronda_pending') || '[]');
+        } catch { return []; }
+    }
+
+    function addPending(record) {
+        const pending = getPendingRecords();
+        pending.push(record);
+        localStorage.setItem('ronda_pending', JSON.stringify(pending));
+    }
+
+    function clearPending() {
+        localStorage.removeItem('ronda_pending');
+    }
+
+    async function syncToFirebase() {
+        if (!firebaseReady || !db || !navigator.onLine) return;
+
+        const badge = document.getElementById('syncBadge');
+        badge.className = 'sync-badge syncing';
+        badge.textContent = 'Sincronizando...';
+
+        try {
+            // 1. Upload pending records
+            const pending = getPendingRecords();
+            if (pending.length > 0) {
+                const batch = db.batch();
+                for (const record of pending) {
+                    const docRef = db.collection('auditorias').doc(record.id);
+                    batch.set(docRef, record);
+                }
+                await batch.commit();
+                clearPending();
+                showToast(`${pending.length} registro(s) sincronizado(s)`);
+            }
+
+            // 2. Download all records from Firestore
+            const snapshot = await db.collection('auditorias').get();
+            const cloudRecords = [];
+            snapshot.forEach(doc => cloudRecords.push(doc.data()));
+
+            // 3. Replace local records with cloud data
+            localStorage.setItem('ronda_records', JSON.stringify(cloudRecords));
+
+            // 4. Update UI
+            updateSyncBadge();
+            renderHistory();
+            updateDashboard();
+            document.getElementById('syncStatus').textContent =
+                `Ultima sync: ${new Date().toLocaleTimeString()} - ${cloudRecords.length} registros na nuvem`;
+        } catch (e) {
+            console.error('Sync error:', e);
+            badge.className = 'sync-badge pending';
+            badge.textContent = 'Erro sync';
+            showToast('Erro ao sincronizar: ' + e.message);
+        }
+    }
+
+    async function manualSync() {
+        if (!firebaseReady) {
+            showToast('Configure o Firebase na aba Config');
+            return;
+        }
+        if (!navigator.onLine) {
+            showToast('Sem conexao de rede');
+            return;
+        }
+        await syncToFirebase();
+    }
+
+    function clearLocalCache() {
+        if (!confirm('Limpar todos os dados locais? Os dados na nuvem serao mantidos.')) return;
+        localStorage.removeItem('ronda_records');
+        localStorage.removeItem('ronda_pending');
+        renderHistory();
+        updateDashboard();
+        updateSyncBadge();
+        showToast('Cache local limpo');
     }
 
     // ===== HISTORY =====
@@ -1018,6 +1252,12 @@
         let records = getRecords();
         records = records.filter(r => r.id !== id);
         localStorage.setItem('ronda_records', JSON.stringify(records));
+
+        // Firebase: delete from cloud too
+        if (firebaseReady && db && navigator.onLine) {
+            db.collection('auditorias').doc(id).delete().catch(e => console.error('Delete error:', e));
+        }
+
         closeModal();
         renderHistory();
         showToast('Auditoria excluida');
