@@ -1,10 +1,12 @@
-const CACHE_NAME = 'ronda-uti-v1';
+const CACHE_NAME = 'ronda-uti-v2';
 const ASSETS = [
     './',
     './index.html',
     './manifest.json',
     './icon-192.png',
-    './icon-512.png'
+    './icon-512.png',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'
 ];
 
 self.addEventListener('install', e => {
