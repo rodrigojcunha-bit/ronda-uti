@@ -384,7 +384,7 @@
         }
         .modal-actions button { flex: 1; }
 
-                .item-conf-row {
+        .item-conf-row {
             display: flex;
             align-items: center;
             padding: 8px 0;
@@ -413,7 +413,7 @@
             flex-shrink: 0;
         }
 
-.empty-state {
+        .empty-state {
             text-align: center;
             padding: 48px 20px;
             color: var(--gray);
@@ -428,33 +428,57 @@
             font-size: 12px;
             color: var(--gray);
         }
-        .leito-select-grid {
+        .uti-select-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 8px;
             margin-bottom: 12px;
         }
-        .leito-chip {
-            padding: 10px 8px;
+        .uti-chip {
+            padding: 14px 8px;
             border: 2px solid #ddd;
             border-radius: 10px;
             text-align: center;
             font-weight: 700;
-            font-size: 16px;
+            font-size: 14px;
             cursor: pointer;
             background: #fff;
             transition: all 0.15s;
         }
-        .leito-chip.selected {
+        .uti-chip.selected {
             background: var(--primary);
             border-color: var(--primary);
             color: #fff;
         }
-        .leito-chip.done {
-            background: #d5f5e3;
-            border-color: var(--success);
-            color: var(--success);
+        .uti-chip .uti-count {
+            display: block;
+            font-size: 11px;
+            font-weight: 400;
+            margin-top: 4px;
+            opacity: 0.7;
         }
+        .session-list {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .session-list h4 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+        .session-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .session-item:last-child { border-bottom: none; }
+        .session-item .check { color: var(--success); font-weight: 700; }
     </style>
 </head>
 <body>
@@ -484,11 +508,20 @@
             </div>
         </div>
         <div class="form-group">
-            <label>Selecione o Leito</label>
-            <div class="leito-select-grid" id="leitoGrid"></div>
+            <label>Selecione a UTI</label>
+            <div class="uti-select-grid" id="utiGrid"></div>
         </div>
 
         <div id="auditForm" style="display:none;">
+            <div class="form-group">
+                <label>Numero do Leito</label>
+                <div class="form-row">
+                    <input type="number" id="leitoNumber" placeholder="Ex: 1, 2, 3..." min="1" inputmode="numeric">
+                </div>
+            </div>
+
+            <div id="sessionAudits" style="display:none;"></div>
+
             <div class="progress-info" id="progressInfo"></div>
             <div id="auditItems"></div>
 
@@ -497,7 +530,7 @@
                 <textarea id="generalObs" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;resize:none;height:80px;font-family:inherit;" placeholder="Observacoes adicionais..."></textarea>
             </div>
 
-            <button class="btn-primary" onclick="saveAudit()">Salvar Auditoria do Leito</button>
+            <button class="btn-primary" onclick="saveAudit()">Salvar Auditoria</button>
             <button class="btn-secondary" onclick="finishRonda()">Finalizar Ronda</button>
         </div>
     </div>
@@ -538,8 +571,8 @@
                 <div class="label">Conformidade</div>
             </div>
             <div class="dash-card">
-                <div class="value" id="dashLeitos" style="color:var(--primary-light)">0</div>
-                <div class="label">Leitos Auditados</div>
+                <div class="value" id="dashUTIs" style="color:var(--primary-light)">0</div>
+                <div class="label">UTIs Auditadas</div>
             </div>
             <div class="dash-card">
                 <div class="value" id="dashNC" style="color:var(--danger)">0</div>
@@ -561,7 +594,7 @@
 
     <script>
     // ===== AUDIT ITEMS CONFIG =====
-    const LEITOS = Array.from({length: 40}, (_, i) => i + 1);
+    const UTIS = ['UTI 1', 'UTI 2', 'UTI 3', 'UTI 4'];
 
     const CATEGORIES = [
         {
@@ -632,9 +665,9 @@
     const ALL_ITEMS = CATEGORIES.flatMap(c => c.items);
 
     // ===== STATE =====
-    let currentLeito = null;
-    let currentRondaData = {};  // { leitoX: { items: {...}, obs: '' } }
-    let completedLeitos = new Set();
+    let currentUTI = null;
+    let currentFormData = { items: {}, itemObs: {}, obs: '' };
+    let sessionAudits = []; // audits saved in this UTI session
 
     // ===== INIT =====
     document.addEventListener('DOMContentLoaded', () => {
@@ -644,15 +677,13 @@
         document.getElementById('dashFrom').value = today.slice(0, 8) + '01';
         document.getElementById('dashTo').value = today;
 
-        // Restore auditor name
         const savedAuditor = localStorage.getItem('ronda_auditor');
         if (savedAuditor) document.getElementById('auditorName').value = savedAuditor;
 
-        buildLeitoGrid();
+        buildUTIGrid();
         renderHistory();
         updateDashboard();
 
-        // Tabs
         document.querySelectorAll('.tab').forEach(t => {
             t.addEventListener('click', () => {
                 document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
@@ -664,46 +695,43 @@
             });
         });
 
-        // Filter
         document.getElementById('filterDate').addEventListener('change', renderHistory);
 
-        // Offline detection
         const updateOnline = () => document.body.classList.toggle('offline', !navigator.onLine);
         window.addEventListener('online', updateOnline);
         window.addEventListener('offline', updateOnline);
         updateOnline();
     });
 
-    // ===== LEITO GRID =====
-    function buildLeitoGrid() {
-        const grid = document.getElementById('leitoGrid');
+    // ===== UTI GRID =====
+    function buildUTIGrid() {
+        const grid = document.getElementById('utiGrid');
         grid.innerHTML = '';
-        LEITOS.forEach(l => {
+        UTIS.forEach(uti => {
             const chip = document.createElement('div');
-            chip.className = 'leito-chip' + (completedLeitos.has(l) ? ' done' : '') + (currentLeito === l ? ' selected' : '');
-            chip.textContent = l;
-            chip.onclick = () => selectLeito(l);
+            chip.className = 'uti-chip' + (currentUTI === uti ? ' selected' : '');
+            const count = sessionAudits.filter(a => a.uti === uti).length;
+            chip.innerHTML = uti + (count > 0 ? `<span class="uti-count">${count} audit.</span>` : '');
+            chip.onclick = () => selectUTI(uti);
             grid.appendChild(chip);
         });
     }
 
-    function selectLeito(leito) {
-        // Save current if switching
-        if (currentLeito !== null) saveCurrentState();
-
-        currentLeito = leito;
-        buildLeitoGrid();
-        buildAuditForm(leito);
+    function selectUTI(uti) {
+        currentUTI = uti;
+        currentFormData = { items: {}, itemObs: {}, obs: '' };
+        buildUTIGrid();
+        buildAuditForm();
+        document.getElementById('leitoNumber').value = '';
         document.getElementById('auditForm').style.display = 'block';
+        renderSessionAudits();
     }
 
     // ===== AUDIT FORM =====
-    function buildAuditForm(leito) {
+    function buildAuditForm() {
         const container = document.getElementById('auditItems');
         container.innerHTML = '';
         let idx = 0;
-
-        const saved = currentRondaData[leito] || {};
 
         CATEGORIES.forEach(cat => {
             const header = document.createElement('div');
@@ -713,9 +741,6 @@
 
             cat.items.forEach(item => {
                 idx++;
-                const savedVal = saved.items ? saved.items[item] : null;
-                const savedObs = saved.itemObs ? saved.itemObs[item] : '';
-
                 const card = document.createElement('div');
                 card.className = 'audit-card';
                 card.innerHTML = `
@@ -723,20 +748,20 @@
                         <span class="item-number">${idx}</span>
                         <span class="item-label">${item}</span>
                         <div class="btn-group">
-                            <button class="btn-opt ${savedVal === 'C' ? 'selected-c' : ''}" data-item="${item}" data-val="C" onclick="setVal(this)">C</button>
-                            <button class="btn-opt ${savedVal === 'NC' ? 'selected-nc' : ''}" data-item="${item}" data-val="NC" onclick="setVal(this)">NC</button>
-                            <button class="btn-opt ${savedVal === 'NA' ? 'selected-na' : ''}" data-item="${item}" data-val="NA" onclick="setVal(this)">NA</button>
+                            <button class="btn-opt" data-item="${item}" data-val="C" onclick="setVal(this)">C</button>
+                            <button class="btn-opt" data-item="${item}" data-val="NC" onclick="setVal(this)">NC</button>
+                            <button class="btn-opt" data-item="${item}" data-val="NA" onclick="setVal(this)">NA</button>
                         </div>
                     </div>
-                    <div class="obs-field ${savedVal === 'NC' ? 'visible' : ''}" id="obs-${idx}">
-                        <textarea placeholder="Observacao da nao conformidade..." data-item="${item}" oninput="setObs(this)">${savedObs || ''}</textarea>
+                    <div class="obs-field" id="obs-${idx}">
+                        <textarea placeholder="Observacao da nao conformidade..." data-item="${item}" oninput="setObs(this)"></textarea>
                     </div>
                 `;
                 container.appendChild(card);
             });
         });
 
-        document.getElementById('generalObs').value = saved.obs || '';
+        document.getElementById('generalObs').value = '';
         updateProgress();
     }
 
@@ -750,46 +775,56 @@
         });
         btn.classList.add('selected-' + val.toLowerCase());
 
-        // Show/hide obs for NC
         const obsField = btn.closest('.audit-card').querySelector('.obs-field');
         if (obsField) {
             obsField.classList.toggle('visible', val === 'NC');
         }
 
-        // Store
-        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
-        currentRondaData[currentLeito].items[item] = val;
-
+        currentFormData.items[item] = val;
         updateProgress();
     }
 
     function setObs(textarea) {
         const item = textarea.dataset.item;
-        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
-        if (!currentRondaData[currentLeito].itemObs) currentRondaData[currentLeito].itemObs = {};
-        currentRondaData[currentLeito].itemObs[item] = textarea.value;
+        if (!currentFormData.itemObs) currentFormData.itemObs = {};
+        currentFormData.itemObs[item] = textarea.value;
     }
 
     function updateProgress() {
-        if (!currentLeito) return;
-        const data = currentRondaData[currentLeito];
-        const filled = data && data.items ? Object.keys(data.items).length : 0;
-        document.getElementById('progressInfo').textContent = `Leito ${currentLeito} - ${filled}/${ALL_ITEMS.length} itens preenchidos`;
+        if (!currentUTI) return;
+        const filled = Object.keys(currentFormData.items).length;
+        const leito = document.getElementById('leitoNumber').value;
+        const leitoText = leito ? `Leito ${leito}` : 'Leito ?';
+        document.getElementById('progressInfo').textContent = `${currentUTI} - ${leitoText} - ${filled}/${ALL_ITEMS.length} itens`;
     }
 
-    function saveCurrentState() {
-        if (!currentLeito) return;
-        if (!currentRondaData[currentLeito]) currentRondaData[currentLeito] = { items: {}, itemObs: {}, obs: '' };
-        currentRondaData[currentLeito].obs = document.getElementById('generalObs').value;
+    function renderSessionAudits() {
+        const container = document.getElementById('sessionAudits');
+        const utiAudits = sessionAudits.filter(a => a.uti === currentUTI);
+        if (utiAudits.length === 0) {
+            container.style.display = 'none';
+            return;
+        }
+        container.style.display = 'block';
+        container.innerHTML = `<div class="session-list"><h4>Auditorias nesta sessao - ${currentUTI}</h4>` +
+            utiAudits.map(a => {
+                const stats = calcStats(a.items);
+                const pct = (stats.c + stats.nc) > 0 ? Math.round((stats.c / (stats.c + stats.nc)) * 100) : 0;
+                return `<div class="session-item"><span>Leito ${a.leito}</span><span class="check">${pct}% â</span></div>`;
+            }).join('') + '</div>';
     }
 
     // ===== SAVE =====
     function saveAudit() {
-        if (!currentLeito) return;
-        saveCurrentState();
+        if (!currentUTI) return;
 
-        const data = currentRondaData[currentLeito];
-        if (!data || !data.items || Object.keys(data.items).length === 0) {
+        const leito = document.getElementById('leitoNumber').value.trim();
+        if (!leito) {
+            showToast('Informe o numero do leito');
+            return;
+        }
+
+        if (Object.keys(currentFormData.items).length === 0) {
             showToast('Preencha ao menos um item');
             return;
         }
@@ -802,15 +837,17 @@
         }
 
         localStorage.setItem('ronda_auditor', auditor);
+        currentFormData.obs = document.getElementById('generalObs').value;
 
         const record = {
-            id: Date.now() + '_' + currentLeito,
+            id: Date.now() + '_' + currentUTI + '_' + leito,
             date,
             auditor,
-            leito: currentLeito,
-            items: { ...data.items },
-            itemObs: { ...(data.itemObs || {}) },
-            obs: data.obs || '',
+            uti: currentUTI,
+            leito: leito,
+            items: { ...currentFormData.items },
+            itemObs: { ...(currentFormData.itemObs || {}) },
+            obs: currentFormData.obs || '',
             timestamp: new Date().toISOString()
         };
 
@@ -818,31 +855,30 @@
         records.push(record);
         localStorage.setItem('ronda_records', JSON.stringify(records));
 
-        completedLeitos.add(currentLeito);
-        buildLeitoGrid();
-        showToast(`Leito ${currentLeito} salvo com sucesso`);
+        sessionAudits.push(record);
+        showToast(`${currentUTI} - Leito ${leito} salvo!`);
 
-        // Auto-select next leito
-        const nextLeito = LEITOS.find(l => !completedLeitos.has(l));
-        if (nextLeito) {
-            selectLeito(nextLeito);
-        } else {
-            document.getElementById('auditForm').style.display = 'none';
-            currentLeito = null;
-        }
+        // Reset form but stay in same UTI
+        currentFormData = { items: {}, itemObs: {}, obs: '' };
+        buildAuditForm();
+        document.getElementById('leitoNumber').value = '';
+        buildUTIGrid();
+        renderSessionAudits();
     }
 
     function finishRonda() {
-        if (completedLeitos.size === 0) {
-            showToast('Nenhum leito foi auditado');
+        if (sessionAudits.length === 0) {
+            showToast('Nenhuma auditoria realizada');
             return;
         }
-        currentRondaData = {};
-        completedLeitos = new Set();
-        currentLeito = null;
-        buildLeitoGrid();
+        const total = sessionAudits.length;
+        sessionAudits = [];
+        currentFormData = { items: {}, itemObs: {}, obs: '' };
+        currentUTI = null;
+        buildUTIGrid();
         document.getElementById('auditForm').style.display = 'none';
-        showToast(`Ronda finalizada!`);
+        document.getElementById('sessionAudits').style.display = 'none';
+        showToast(`Ronda finalizada! ${total} auditorias salvas.`);
     }
 
     // ===== HISTORY =====
@@ -872,7 +908,7 @@
             return `
                 <div class="history-card" onclick="showDetail('${r.id}')">
                     <div class="meta">
-                        <strong>Leito ${r.leito}</strong>
+                        <strong>${r.uti || 'UTI'} - Leito ${r.leito}</strong>
                         <span class="date">${formatDate(r.date)} - ${r.auditor}</span>
                     </div>
                     <div class="stats">
@@ -913,7 +949,7 @@
 
         let html = '';
         CATEGORIES.forEach(cat => {
-            html += '<div style="font-size:11px;font-weight:700;color:var(--primary);margin:10px 0 4px;text-transform:uppercase;letter-spacing:0.3px;">' + cat.name + '</div>';
+            html += `<div style="font-size:11px;font-weight:700;color:var(--primary);margin:10px 0 4px;text-transform:uppercase;letter-spacing:0.3px;">${cat.name}</div>`;
             cat.items.forEach(item => {
                 const s = itemStats[item];
                 const applicable = s.c + s.nc;
@@ -921,7 +957,11 @@
                 const color = pct < 0 ? 'var(--gray)' : pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
                 const pctText = pct < 0 ? '-' : pct + '%';
                 const barWidth = pct < 0 ? 0 : pct;
-                html += '<div class="item-conf-row"><span class="item-name">' + item + '</span><div class="item-bar"><div class="item-fill" style="width:' + barWidth + '%;background:' + color + '"></div></div><span class="item-pct" style="color:' + color + '">' + pctText + '</span></div>';
+                html += `<div class="item-conf-row">
+                    <span class="item-name">${item}</span>
+                    <div class="item-bar"><div class="item-fill" style="width:${barWidth}%;background:${color}"></div></div>
+                    <span class="item-pct" style="color:${color}">${pctText}</span>
+                </div>`;
             });
         });
 
@@ -941,7 +981,7 @@
         const stats = calcStats(r.items);
         const pct = stats.total > 0 ? Math.round((stats.c / (stats.c + stats.nc)) * 100) || 0 : 0;
 
-        let html = `<h2>Leito ${r.leito} - ${formatDate(r.date)}</h2>`;
+        let html = `<h2>${r.uti || 'UTI'} - Leito ${r.leito} - ${formatDate(r.date)}</h2>`;
         html += `<p style="font-size:13px;color:var(--gray);margin-bottom:16px;">Auditor: ${r.auditor}</p>`;
         html += `<p style="font-size:14px;font-weight:600;margin-bottom:12px;">Conformidade: ${pct}%</p>`;
 
@@ -999,10 +1039,10 @@
 
         let totalC = 0, totalNC = 0, totalNA = 0;
         const ncMap = {};
-        const leitoSet = new Set();
+        const utiSet = new Set();
 
         records.forEach(r => {
-            leitoSet.add(r.leito);
+            utiSet.add(r.uti || 'UTI');
             Object.entries(r.items).forEach(([item, val]) => {
                 if (val === 'C') totalC++;
                 else if (val === 'NC') {
@@ -1017,7 +1057,7 @@
         const pct = applicable > 0 ? Math.round((totalC / applicable) * 100) : 0;
         document.getElementById('dashConf').textContent = pct + '%';
         document.getElementById('dashConf').style.color = pct >= 80 ? 'var(--success)' : pct >= 60 ? 'var(--warning)' : 'var(--danger)';
-        document.getElementById('dashLeitos').textContent = leitoSet.size;
+        document.getElementById('dashUTIs').textContent = utiSet.size;
         document.getElementById('dashNC').textContent = totalNC;
 
         // NC Ranking
@@ -1043,7 +1083,7 @@
             return;
         }
 
-        const headers = ['Data', 'Auditor', 'Leito', ...ALL_ITEMS, 'Observacoes'];
+        const headers = ['Data', 'Auditor', 'UTI', 'Leito', ...ALL_ITEMS, 'Observacoes'];
         const rows = records.map(r => {
             const vals = ALL_ITEMS.map(item => {
                 let v = r.items[item] || '';
@@ -1052,7 +1092,7 @@
                 }
                 return v;
             });
-            return [r.date, r.auditor, r.leito, ...vals, r.obs || ''];
+            return [r.date, r.auditor, r.uti || '', r.leito, ...vals, r.obs || ''];
         });
 
         let csv = '\uFEFF'; // BOM for Excel
