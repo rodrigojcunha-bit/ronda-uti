@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ronda-uti-v2';
+const CACHE_NAME = 'ronda-uti-v3';
 const ASSETS = [
     './',
     './index.html',
@@ -24,6 +24,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+    // Don't intercept Firebase/Firestore API requests
+    if (e.request.url.includes('googleapis.com') || e.request.url.includes('firebaseio.com')) {
+        return;
+    }
     e.respondWith(
         caches.match(e.request).then(cached => cached || fetch(e.request).then(resp => {
             const clone = resp.clone();
