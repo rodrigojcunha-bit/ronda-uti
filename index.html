@@ -530,7 +530,7 @@
 </head>
 <body>
     <header>
-        <h1>Ronda UTI Adulto <span class="offline-badge">Offline</span> <span class="sync-badge no-fb" id="syncBadge" onclick="manualSync()">Firebase</span></h1>
+        <h1>Ronda UTI Adulto <span class="offline-badge">Offline</span> <span class="sync-badge syncing" id="syncBadge" onclick="manualSync()">Conectando...</span></h1>
         <small id="headerDate"></small>
     </header>
 
@@ -636,17 +636,9 @@
     <!-- CONFIG TAB -->
     <div id="config" class="section">
         <div class="fb-config-panel">
-            <h3>Firebase - Sincronizacao na Nuvem</h3>
-            <p>Cole aqui o objeto de configuracao do Firebase (firebaseConfig) do seu projeto. Acesse <strong>console.firebase.google.com</strong>, crie um projeto, ative o Firestore e copie a configuracao.</p>
-            <textarea id="fbConfigInput" placeholder='{"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
-            <button class="btn-primary" onclick="saveFirebaseConfig()" style="margin-top:8px;">Salvar e Conectar</button>
-            <button class="btn-secondary" onclick="removeFirebaseConfig()">Desconectar Firebase</button>
-            <div id="fbStatus"></div>
-        </div>
-        <div class="fb-config-panel">
-            <h3>Status da Sincronizacao</h3>
-            <p id="syncStatus">Nao configurado</p>
-            <button class="btn-secondary" onclick="manualSync()">Sincronizar Agora</button>
+            <h3>Sincronizacao na Nuvem</h3>
+            <p id="syncStatus">Conectando...</p>
+            <button class="btn-primary" onclick="manualSync()">Sincronizar Agora</button>
             <button class="btn-danger" onclick="clearLocalCache()" style="margin-top:8px;">Limpar Cache Local</button>
         </div>
     </div>
@@ -775,11 +767,8 @@
         window.addEventListener('offline', updateOnline);
         updateOnline();
 
-        // Init Firebase if configured
-        const fbConfig = getFirebaseConfig();
-        if (fbConfig) {
-            initFirebase(fbConfig);
-        }
+        // Init Firebase
+        initFirebase();
     });
 
     // ===== UTI GRID =====
@@ -971,45 +960,23 @@
     let db = null;
     let firebaseReady = false;
 
-    function getFirebaseConfig() {
-        try {
-            return JSON.parse(localStorage.getItem('ronda_firebase_config'));
-        } catch { return null; }
-    }
+    const FIREBASE_CONFIG = {
+        apiKey: "AIzaSyBhjJI9OWlEpkiPlXEdPLB-ztWL3baP7fQ",
+        authDomain: "ronda-uti-app.firebaseapp.com",
+        projectId: "ronda-uti-app",
+        storageBucket: "ronda-uti-app.firebasestorage.app",
+        messagingSenderId: "17796698622",
+        appId: "1:17796698622:web:04aa51431b4aa714d5f0af"
+    };
 
-    function saveFirebaseConfig() {
-        const raw = document.getElementById('fbConfigInput').value.trim();
-        try {
-            const config = JSON.parse(raw);
-            if (!config.apiKey || !config.projectId) throw new Error('Falta apiKey ou projectId');
-            localStorage.setItem('ronda_firebase_config', JSON.stringify(config));
-            initFirebase(config);
-            document.getElementById('fbStatus').innerHTML = '<div class="fb-status ok">Conectado com sucesso!</div>';
-        } catch (e) {
-            document.getElementById('fbStatus').innerHTML = `<div class="fb-status err">Erro: ${e.message}</div>`;
-        }
-    }
-
-    function removeFirebaseConfig() {
-        localStorage.removeItem('ronda_firebase_config');
-        db = null;
-        firebaseReady = false;
-        updateSyncBadge();
-        document.getElementById('fbStatus').innerHTML = '<div class="fb-status err">Firebase desconectado</div>';
-        document.getElementById('syncStatus').textContent = 'Nao configurado';
-    }
-
-    function initFirebase(config) {
+    function initFirebase() {
         try {
             if (firebase.apps.length === 0) {
-                firebase.initializeApp(config);
+                firebase.initializeApp(FIREBASE_CONFIG);
             }
             db = firebase.firestore();
             firebaseReady = true;
             updateSyncBadge();
-            // Load config into textarea
-            const input = document.getElementById('fbConfigInput');
-            if (input) input.value = JSON.stringify(config, null, 2);
             // Auto-sync on init
             if (navigator.onLine) syncToFirebase();
         } catch (e) {
@@ -1024,7 +991,7 @@
         const pendingCount = getPendingRecords().length;
         if (!firebaseReady) {
             badge.className = 'sync-badge no-fb';
-            badge.textContent = 'Firebase';
+            badge.textContent = 'Offline';
         } else if (pendingCount > 0) {
             badge.className = 'sync-badge pending';
             badge.textContent = `${pendingCount} pendente${pendingCount > 1 ? 's' : ''}`;
@@ -1095,8 +1062,7 @@
 
     async function manualSync() {
         if (!firebaseReady) {
-            showToast('Configure o Firebase na aba Config');
-            return;
+            initFirebase();
         }
         if (!navigator.onLine) {
             showToast('Sem conexao de rede');
